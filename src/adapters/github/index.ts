@@ -1,4 +1,4 @@
-import { GitHostAdapter, CommitInput, EventQuery, RawCommit, AuthError, NotImplementedError } from '../../core/types.js';
+import { GitHostAdapter, CommitInput, EventQuery, RawCommit, AuthError, NotImplementedError, ConflictError } from '../../core/types.js';
 import { deviceFlow } from './device-flow.js';
 import { ApiClient } from './api.js';
 
@@ -24,16 +24,22 @@ export class GitHubAdapter implements GitHostAdapter {
   }
 
   async signIn(): Promise<void> {
-    if (this.token) return;
-    this.token = await deviceFlow({
-      clientId: this.opts.clientId,
-      scope: this.opts.scope,
-      onUserCode: this.opts.onUserCode,
-    });
-    this.opts.storage?.set(this.token);
-    this.api = new ApiClient({ token: this.token, repo: this.opts.repo });
-    const viewer = await this.api.getViewer();
-    this.actor = viewer.login;
+    if (!this.token) {
+      this.token = await deviceFlow({
+        clientId: this.opts.clientId,
+        scope: this.opts.scope,
+        onUserCode: this.opts.onUserCode,
+      });
+      this.opts.storage?.set(this.token);
+      this.api = new ApiClient({ token: this.token, repo: this.opts.repo });
+    }
+    if (!this.api) {
+      this.api = new ApiClient({ token: this.token, repo: this.opts.repo });
+    }
+    if (this.actor === null) {
+      const viewer = await this.api.getViewer();
+      this.actor = viewer.login;
+    }
   }
 
   async signOut(): Promise<void> {
@@ -51,14 +57,59 @@ export class GitHubAdapter implements GitHostAdapter {
     return this.actor;
   }
 
-  async commit(_input: CommitInput): Promise<{ sha: string }> {
+  async commit(input: CommitInput): Promise<{ sha: string }> {
     if (!this.api) throw new AuthError('Not authenticated');
-    throw new NotImplementedError('GitHubAdapter.commit (implemented in Task 9)');
+
+    const fullMessage = input.subject + (input.body ? '\n\n' + input.body : '');
+    const branch = input.branch;
+
+    const filesEntries = Object.entries(input.files ?? {});
+    if (filesEntries.length > 1) {
+      throw new NotImplementedError('Multi-file commits via Contents API (use single-file commits in MVP)');
+    }
+
+    let filePath: string;
+    let content: string;
+    if (filesEntries.length === 1) {
+      [filePath, content] = filesEntries[0]!;
+    } else {
+      filePath = `${this.opts.path ?? ''}.gnp/events/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.event`;
+      content = input.body;
+    }
+
+    try {
+      const result = await this.api.putContents({ path: filePath, content, message: fullMessage, branch });
+      return { sha: result.commit.sha };
+    } catch (e) {
+      if ((e as { isConflict?: boolean }).isConflict) {
+        throw new ConflictError();
+      }
+      throw e;
+    }
   }
 
-  async events(_query: EventQuery): Promise<RawCommit[]> {
+  async events(query: EventQuery): Promise<RawCommit[]> {
     if (!this.api) throw new AuthError('Not authenticated');
-    throw new NotImplementedError('GitHubAdapter.events (implemented in Task 9)');
+
+    const since = query.since && /^\d{4}-/.test(query.since) ? query.since : undefined;
+    const list = await this.api.listCommits({
+      path: this.opts.path,
+      since,
+      per_page: query.limit ?? 50,
+    });
+
+    return list.map(c => {
+      const lines = c.commit.message.split('\n');
+      const subject = lines[0] ?? '';
+      const body = lines.slice(2).join('\n');
+      return {
+        sha: c.sha,
+        author: c.author?.login ?? c.commit.author.name,
+        committedAt: c.commit.author.date,
+        messageSubject: subject,
+        messageBody: body,
+      };
+    });
   }
 
   capabilities() {
