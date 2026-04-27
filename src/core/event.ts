@@ -43,11 +43,11 @@ export function parseEvent(body: string, sha: string): Event {
 export function generateSubject(event: Event): string {
   switch (event.op) {
     case 'place':
-      return `place piece ${event.piece} at slot ${JSON.stringify(event.slot)}`;
+      return `place piece ${event.piece ?? '?'} at slot ${JSON.stringify(event.slot ?? [])}`;
     case 'react':
-      return `react ${event.value} on ${event.target}`;
+      return `react ${event.value ?? '?'} on ${event.target ?? '?'}`;
     case 'comment':
-      return `comment on ${event.target}`;
+      return `comment on ${event.target ?? '?'}`;
     default:
       return `${event.op} event`;
   }
