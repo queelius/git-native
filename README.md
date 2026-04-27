@@ -6,7 +6,7 @@ The library that backs the *Your Blog Will Outlive Your Database* essay (https:/
 
 ## Status
 
-`v0.1.0-pre`. Tier 1 (commit-as-write) implemented for GitHub and Local (Node) adapters. Tier 2 (branch, tag, merge, revert) deferred to a follow-up plan.
+`v0.1.0-pre`. Tier 1 (commit-as-write) implemented for GitHub and Local (Node) adapters. Additional git operations (branch, tag, merge, revert) will be added only when a concrete consumer requires them.
 
 ## Install
 
@@ -68,8 +68,8 @@ The architecture is host-agnostic core plus adapters per git host:
 
 - `core/`: public API, structured-event format, conflict retry, subscription polling.
 - `adapters/github/`: GitHub via Device Flow + REST.
-- `adapters/local/`: isomorphic-git via `node:fs` (Node) or File System Access API (Browser, stub in MVP).
-- `adapters/gitlab/`, `adapters/gitea/`: stubs awaiting implementation.
+- `adapters/local/`: isomorphic-git via `node:fs` (Node).
+- Third-party adapters: implement `GitHostAdapter` and run `runAdapterContract` against it.
 
 ## Writing your own adapter
 

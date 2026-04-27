@@ -42,9 +42,7 @@ git-native/
 │   │   └── types.ts             # GitHostAdapter, Event, EventQuery
 │   ├── adapters/
 │   │   ├── github/              # MVP: Device Flow + REST
-│   │   ├── local/               # MVP: isomorphic-git on FSA (browser) or node:fs (tests)
-│   │   ├── gitlab/              # stub + adapter contract README
-│   │   └── gitea/               # stub + adapter contract README
+│   │   └── local/               # MVP: isomorphic-git on node:fs
 │   └── index.ts
 ├── test/
 │   ├── core/                    # mocked adapter
@@ -71,16 +69,6 @@ interface Store {
   commit(event: EventInput, opts?: CommitOptions): Promise<{ sha: string }>;
   events(query?: EventQuery): Promise<Event[]>;
   subscribe(callback: (newEvents: Event[]) => void): Subscription;
-
-  // Tier 2: branching, tagging, merging, reverting.
-  // MVP: functional for simple cases on both adapters; complex cases (non-FF
-  // merges, multi-commit revert chains) throw NotImplementedError.
-  branches(): Promise<Branch[]>;
-  branch(name: string, fromSha?: string): Promise<Branch>;
-  tags(): Promise<Tag[]>;
-  tag(name: string, sha?: string, message?: string): Promise<Tag>;
-  merge(sourceBranch: string, options?: MergeOptions): Promise<{ sha: string }>;
-  revert(sha: string, options?: RevertOptions): Promise<{ sha: string }>;
 }
 ```
 
@@ -127,23 +115,16 @@ interface GitHostAdapter {
 
   commit(input: CommitInput): Promise<{ sha: string }>;
   events(query: EventQuery): Promise<RawCommit[]>;
-
-  branches(): Promise<Branch[]>;
-  branch(name: string, fromSha?: string): Promise<Branch>;
-  tags(): Promise<Tag[]>;
-  tag(name: string, sha?: string, message?: string): Promise<Tag>;
-  merge(sourceBranch: string, options?: MergeOptions): Promise<{ sha: string }>;
-  revert(sha: string, options?: RevertOptions): Promise<{ sha: string }>;
-
-  capabilities(): { realtime: false; tier1: true; tier2: boolean };
 }
 ```
+
+Tier 2 operations (branch, tag, merge, revert) will be added to the
+interface only when a concrete consumer requires them. The simplicity
+stance: do not implement git operations in advance of need.
 
 `CommitInput` carries the formatted commit message subject and body, plus an optional `files` map for the case where the event also writes a file (jigsaw places piece 42 → event in commit body AND file at `pieces/042.json`, both atomic in one commit). Pure event commits (reactions, votes) omit `files`.
 
 `RawCommit` is a normalized shape adapters return: `{ sha, author, committedAt, messageSubject, messageBody }`. The core parses `messageBody` as YAML to produce `Event`.
-
-Adapters that don't support a Tier 2 operation throw `NotImplementedError`. The core never assumes Tier 2 capability; consumers handle the throw or check `capabilities()` first.
 
 ## Event payload format
 
@@ -217,14 +198,15 @@ Coverage targets: 90% on `core/`, 80% on adapters. Subscription gets explicit fa
 
 ## Out of scope (explicit)
 
-These belong to follow-up projects, not this MVP:
+These are not planned or pre-designed. If a consumer needs them, build them then:
 
 - Python client (`git-native-py`)
 - FastAPI adapter
-- GitLab and Gitea adapters (interface-only stubs in MVP)
+- GitLab and Gitea adapters
 - Submodule operations
 - Real-time updates (long-poll, webhook, WebSocket)
 - Multi-repo composition
 - Identity providers beyond GitHub
 - Right-to-be-forgotten tooling
 - Hosted OAuth Worker (documented as optional future)
+- Branch, tag, merge, revert operations (add to the interface when a consumer asks for them)
