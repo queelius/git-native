@@ -47,13 +47,17 @@ export class LocalNodeAdapter implements GitHostAdapter {
   }
 
   async events(query: EventQuery): Promise<RawCommit[]> {
+    // isomorphic-git stops walking when committer.timestamp <= sinceTimestamp (seconds).
+    // Subtract one second so commits at exactly the since boundary are included.
+    let sinceDate: Date | undefined;
+    if (query.since && /^\d{4}-/.test(query.since)) {
+      sinceDate = new Date(new Date(query.since).getTime() - 1000);
+    }
     const log = await git.log({
       fs,
       dir: this.opts.dir,
       depth: query.limit ?? 50,
-      ...(query.since && /^\d{4}-/.test(query.since)
-        ? { since: new Date(query.since) }
-        : {}),
+      ...(sinceDate ? { since: sinceDate } : {}),
     });
 
     return log.map(entry => {

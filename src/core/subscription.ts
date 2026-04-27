@@ -10,26 +10,33 @@ export function createSubscriber(
   options: SubscribeOptions,
   callback: (events: Event[]) => void,
 ): Subscription {
-  let lastSeenSha: string | undefined = undefined;
+  let lastSeenAt: string | undefined = undefined;
+  const seenShas = new Set<string>();
   let stopped = false;
 
   const tick = async (): Promise<void> => {
     if (stopped) return;
     try {
-      const raw = await adapter.events({ since: lastSeenSha });
-      if (raw.length > 0 && !stopped) {
-        const events: Event[] = [];
-        for (const c of raw) {
-          try {
-            events.push(parseEvent(c.messageBody, c.sha));
-          } catch {
-            // Skip events that fail to parse; subscriber sees only valid events.
-          }
+      const raw = await adapter.events(lastSeenAt ? { since: lastSeenAt } : {});
+      if (raw.length === 0 || stopped) return;
+
+      const fresh: Event[] = [];
+      for (const c of raw) {
+        if (seenShas.has(c.sha)) continue;
+        try {
+          fresh.push(parseEvent(c.messageBody, c.sha));
+          seenShas.add(c.sha);
+        } catch {
+          // Mark unparseable commits as seen so we don't re-attempt them every tick.
+          seenShas.add(c.sha);
         }
-        if (events.length > 0) {
-          lastSeenSha = raw[0]!.sha;
-          callback(events);
-        }
+      }
+
+      if (fresh.length > 0 && !stopped) {
+        // Advance the time cursor to the newest event we just saw.
+        // raw[0] is newest (adapter contract: newest-first).
+        lastSeenAt = raw[0]!.committedAt;
+        callback(fresh);
       }
     } catch {
       // Swallow poll errors in MVP; continue polling.

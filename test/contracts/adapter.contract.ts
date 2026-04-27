@@ -76,5 +76,20 @@ export function runAdapterContract(opts: ContractOptions): void {
       expect(caps.realtime).toBe(false);
       expect(caps.tier1).toBe(true);
     });
+
+    it('events with since=ISO_date returns commits at or after that date', async () => {
+      const beforeDate = new Date().toISOString();
+      // Sleep briefly to ensure committedAt > beforeDate
+      await new Promise(r => setTimeout(r, 10));
+
+      const result = await adapter.commit({
+        subject: 'after the cutoff',
+        body: 'op: place\nactor: queelius\nts: 2026-04-26T00:00:00Z\nv: 1\npiece: 1\nslot: [0, 0]\n',
+      });
+
+      const events = await adapter.events({ since: beforeDate });
+      const found = events.find(e => e.sha === result.sha);
+      expect(found).toBeDefined();
+    });
   });
 }

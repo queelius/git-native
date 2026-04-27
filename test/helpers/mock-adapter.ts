@@ -43,8 +43,14 @@ export class MockAdapter implements GitHostAdapter {
   async events(query: EventQuery): Promise<RawCommit[]> {
     let result = this.commits.slice();
     if (query.since) {
-      const idx = result.findIndex(c => c.sha === query.since);
-      if (idx >= 0) result = result.slice(0, idx);
+      if (/^\d{4}-/.test(query.since)) {
+        // ISO date filter: return commits strictly newer than the cutoff.
+        result = result.filter(c => c.committedAt > query.since!);
+      } else {
+        // Legacy sha filter: kept so any existing sha-based callers still work.
+        const idx = result.findIndex(c => c.sha === query.since);
+        if (idx >= 0) result = result.slice(0, idx);
+      }
     }
     if (query.limit) result = result.slice(0, query.limit);
     return result;

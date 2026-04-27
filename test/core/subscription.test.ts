@@ -50,6 +50,45 @@ describe('createSubscriber', () => {
     sub.unsubscribe();
   });
 
+  it('handles repeated polls without re-firing for the same commits', async () => {
+    const adapter = new MockAdapter({ actor: 'alice' });
+    await adapter.signIn();
+    adapter._injectCommit({
+      sha: 'sha-A',
+      author: 'alice',
+      committedAt: '2026-04-26T00:00:00Z',
+      messageSubject: 'subject A',
+      messageBody: 'op: place\nactor: alice\nts: 2026-04-26T00:00:00Z\nv: 1\npiece: 1\nslot: [0, 0]\n',
+    });
+
+    const cb = vi.fn();
+    const sub = createSubscriber(adapter, { pollInterval: 1000 }, cb);
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(cb).toHaveBeenCalledTimes(1);
+
+    // Inject a NEW commit; expect callback to fire only with the new event.
+    adapter._injectCommit({
+      sha: 'sha-B',
+      author: 'alice',
+      committedAt: '2026-04-26T00:00:01Z',
+      messageSubject: 'subject B',
+      messageBody: 'op: place\nactor: alice\nts: 2026-04-26T00:00:01Z\nv: 1\npiece: 2\nslot: [1, 0]\n',
+    });
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(cb).toHaveBeenCalledTimes(2);
+    const secondCall = cb.mock.calls[1]![0];
+    expect(secondCall).toHaveLength(1);
+    expect(secondCall[0].sha).toBe('sha-B');
+
+    // Idle poll: no new commits, callback should NOT fire.
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(cb).toHaveBeenCalledTimes(2);
+
+    sub.unsubscribe();
+  });
+
   it('unsubscribe stops polling', async () => {
     const adapter = new MockAdapter({ actor: 'alice' });
     await adapter.signIn();
