@@ -48,6 +48,7 @@ export async function deviceFlow(opts: DeviceFlowOptions): Promise<string> {
         grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
       }),
     });
+    if (!tokenResp.ok) throw new Error(`Token poll failed: ${tokenResp.status}`);
     const data: TokenResponse = await tokenResp.json();
     if (data.access_token) return data.access_token;
     if (data.error === 'authorization_pending') continue;
