@@ -150,21 +150,19 @@ Every event carries `v: 1`. The library refuses to parse events with unknown maj
 
 **Read.** `store.events(query)` calls `adapter.events()`, gets `RawCommit[]`, parses each `messageBody` as YAML, returns typed `Event[]`. Validation happens here (unknown major version → `ValidationError`).
 
-**Subscribe.** `store.subscribe(cb)` records the last-seen sha, polls `adapter.events({ since: lastSeenSha })` on `pollInterval`, dedups, fires the callback with new events. One polling loop per Store, fanned out to all subscribers. Subscribers get a `Subscription` with `unsubscribe()`.
+**Subscribe.** `store.subscribe(cb)` records the timestamp of the newest event seen (`lastSeenAt`) and a `Set<sha>` of already-seen events. Polls `adapter.events({ since: lastSeenAt })` on `pollInterval`, filters returned commits through the seen-set to dedup ties at the same second. Fires the callback with truly new events. Subscribers get a `Subscription` with `unsubscribe()`.
 
 ## Error handling
 
-Five categories, each with a defined behavior:
+Three categories, each with a defined behavior:
 
 - `ConflictError`: 409 from `adapter.commit`. Core retries once with refetched state. Persistent conflict throws.
 - `AuthError`: token expired, scope insufficient, sign-in canceled. Token cleared, throws.
-- `NetworkError`: timeout, 5xx, offline. Exponential backoff, three attempts default, configurable.
 - `ValidationError`: malformed event payload, unknown major version. Throws immediately, no retry.
-- `NotImplementedError`: Tier 2 method called on an adapter that doesn't support it. Throws synchronously.
 
-GitHub rate limit (5,000/hour authenticated) is tracked via `X-RateLimit-Remaining`. The library emits a `RateLimitWarning` event below 100 remaining. Exhaustion is a `NetworkError` with `retry-after` honored.
+Network failures (timeout, 5xx, offline) propagate as plain `Error` from the adapter. Adapters wrap host-specific HTTP errors with a clear message. The core does not retry network failures in the MVP; if a consumer needs exponential backoff or rate-limit handling, that can be added when the need is concrete.
 
-Subscription resilience: a single failed poll emits an `error` event, polling continues. Three consecutive failures pause polling and emit `paused`. Visibility-change or manual `resume()` restarts.
+Subscription resilience: poll errors are swallowed silently in the MVP and polling continues. If a consumer needs error visibility (logging, paused/resume events, rate-limit warnings), it can be added when the need is concrete.
 
 ## Testing
 
