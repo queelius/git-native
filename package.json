@@ -1,0 +1,46 @@
+{
+  "name": "git-native",
+  "version": "0.1.0-pre",
+  "description": "A host-agnostic substrate for committing structured events to a git repo from the browser",
+  "type": "module",
+  "license": "MIT",
+  "author": "Alexander Towell <lex@metafunctor.com>",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./github": {
+      "types": "./dist/adapters/github/index.d.ts",
+      "import": "./dist/adapters/github/index.js",
+      "require": "./dist/adapters/github/index.cjs"
+    },
+    "./local": {
+      "types": "./dist/adapters/local/index.d.ts",
+      "import": "./dist/adapters/local/index.js",
+      "require": "./dist/adapters/local/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "ci": "npm run typecheck && npm run test && npm run build"
+  },
+  "dependencies": {
+    "yaml": "^2.6.0",
+    "isomorphic-git": "^1.27.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "msw": "^2.6.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
