@@ -43,7 +43,6 @@ export interface GitHostAdapter {
   commit(input: CommitInput): Promise<{ sha: string }>;
   events(query: EventQuery): Promise<RawCommit[]>;
 
-  capabilities(): { realtime: false; tier1: true; tier2: false };
 }
 
 export interface CommitOptions {
@@ -71,13 +70,6 @@ export class AuthError extends Error {
   }
 }
 
-export class NetworkError extends Error {
-  constructor(message: string, public retryAfter?: number) {
-    super(message);
-    this.name = 'NetworkError';
-  }
-}
-
 export class ValidationError extends Error {
   constructor(message: string) {
     super(message);
@@ -85,9 +77,3 @@ export class ValidationError extends Error {
   }
 }
 
-export class NotImplementedError extends Error {
-  constructor(operation: string) {
-    super(`Operation not implemented: ${operation}`);
-    this.name = 'NotImplementedError';
-  }
-}

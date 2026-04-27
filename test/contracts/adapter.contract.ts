@@ -71,12 +71,6 @@ export function runAdapterContract(opts: ContractOptions): void {
       expect(adapter.currentActor()).toBeNull();
     });
 
-    it('capabilities reports realtime:false, tier1:true', () => {
-      const caps = adapter.capabilities();
-      expect(caps.realtime).toBe(false);
-      expect(caps.tier1).toBe(true);
-    });
-
     it('events with since=ISO_date returns commits at or after that date', async () => {
       const beforeDate = new Date().toISOString();
       // Sleep briefly to ensure committedAt > beforeDate

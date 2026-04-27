@@ -75,7 +75,4 @@ export class LocalNodeAdapter implements GitHostAdapter {
     });
   }
 
-  capabilities() {
-    return { realtime: false as const, tier1: true as const, tier2: false as const };
-  }
 }

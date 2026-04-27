@@ -56,10 +56,6 @@ export class MockAdapter implements GitHostAdapter {
     return result;
   }
 
-  capabilities() {
-    return { realtime: false, tier1: true, tier2: false } as const;
-  }
-
   // Test helpers (not part of GitHostAdapter)
   _injectCommit(commit: RawCommit): void {
     this.commits.unshift(commit);

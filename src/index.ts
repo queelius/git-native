@@ -13,7 +13,5 @@ export type {
 export {
   ConflictError,
   AuthError,
-  NetworkError,
   ValidationError,
-  NotImplementedError,
 } from './core/types.js';

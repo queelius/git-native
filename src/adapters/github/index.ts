@@ -1,4 +1,4 @@
-import { GitHostAdapter, CommitInput, EventQuery, RawCommit, AuthError, NotImplementedError, ConflictError } from '../../core/types.js';
+import { GitHostAdapter, CommitInput, EventQuery, RawCommit, AuthError, ConflictError } from '../../core/types.js';
 import { deviceFlow } from './device-flow.js';
 import { ApiClient } from './api.js';
 
@@ -65,7 +65,7 @@ export class GitHubAdapter implements GitHostAdapter {
 
     const filesEntries = Object.entries(input.files ?? {});
     if (filesEntries.length > 1) {
-      throw new NotImplementedError('Multi-file commits via Contents API (use single-file commits in MVP)');
+      throw new Error('Multi-file commits are not supported. Use single-file commits.');
     }
 
     let filePath: string;
@@ -112,7 +112,4 @@ export class GitHubAdapter implements GitHostAdapter {
     });
   }
 
-  capabilities() {
-    return { realtime: false as const, tier1: true as const, tier2: false as const };
-  }
 }
