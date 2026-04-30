@@ -18,6 +18,7 @@ export interface StoreOptions {
 
 export interface Store {
   signIn(): Promise<void>;
+  signInWithToken(token: string): Promise<void>;
   signOut(): Promise<void>;
   isAuthenticated(): boolean;
   currentActor(): string | null;
@@ -32,6 +33,12 @@ export function gitNative(options: StoreOptions): Store {
 
   return {
     signIn: () => adapter.signIn(),
+    async signInWithToken(token: string) {
+      if (!adapter.signInWithToken) {
+        throw new Error('Adapter does not support token sign-in');
+      }
+      await adapter.signInWithToken(token);
+    },
     signOut: () => adapter.signOut(),
     isAuthenticated: () => adapter.isAuthenticated(),
     currentActor: () => adapter.currentActor(),

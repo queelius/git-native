@@ -44,6 +44,24 @@ export class GitHubAdapter implements GitHostAdapter {
     }
   }
 
+  async signInWithToken(token: string): Promise<void> {
+    if (!token || token.trim() === '') {
+      throw new AuthError('Empty token');
+    }
+    this.token = token.trim();
+    this.api = new ApiClient({ token: this.token, repo: this.opts.repo });
+    try {
+      const viewer = await this.api.getViewer();
+      this.actor = viewer.login;
+    } catch (e) {
+      this.token = null;
+      this.api = new ApiClient({ token: null, repo: this.opts.repo });
+      this.actor = null;
+      throw new AuthError('Token rejected by GitHub');
+    }
+    this.opts.storage?.set(this.token);
+  }
+
   async signOut(): Promise<void> {
     this.token = null;
     this.actor = null;

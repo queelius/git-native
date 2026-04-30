@@ -13,6 +13,10 @@ export class MockAdapter implements GitHostAdapter {
     this.actor = this.actor ?? 'mock-user';
   }
 
+  async signInWithToken(_token: string): Promise<void> {
+    this.actor = this.actor ?? 'mock-user';
+  }
+
   async signOut(): Promise<void> {
     this.actor = null;
   }
