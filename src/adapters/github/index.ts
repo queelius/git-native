@@ -19,8 +19,10 @@ export class GitHubAdapter implements GitHostAdapter {
   constructor(private opts: GitHubAdapterOptions) {
     if (opts.storage) {
       this.token = opts.storage.get();
-      if (this.token) this.api = new ApiClient({ token: this.token, repo: opts.repo });
     }
+    // Always construct api so anonymous reads on public repos work.
+    // Writes still require a token; commit() guards on this.token.
+    this.api = new ApiClient({ token: this.token, repo: opts.repo });
   }
 
   async signIn(): Promise<void> {
@@ -58,7 +60,7 @@ export class GitHubAdapter implements GitHostAdapter {
   }
 
   async commit(input: CommitInput): Promise<{ sha: string }> {
-    if (!this.api) throw new AuthError('Not authenticated');
+    if (!this.token || !this.api) throw new AuthError('Not authenticated');
 
     const fullMessage = input.subject + (input.body ? '\n\n' + input.body : '');
     const branch = input.branch;
@@ -89,7 +91,9 @@ export class GitHubAdapter implements GitHostAdapter {
   }
 
   async events(query: EventQuery): Promise<RawCommit[]> {
-    if (!this.api) throw new AuthError('Not authenticated');
+    // No auth guard: anonymous reads on public repos are valid (lower
+    // rate limit but functional). Writes still guard in commit().
+    if (!this.api) this.api = new ApiClient({ token: this.token, repo: this.opts.repo });
 
     const since = query.since && /^\d{4}-/.test(query.since) ? query.since : undefined;
     const list = await this.api.listCommits({

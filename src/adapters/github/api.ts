@@ -1,7 +1,7 @@
 const GITHUB_API = 'https://api.github.com';
 
 export interface ApiClientOptions {
-  token: string;
+  token: string | null;        // null permits anonymous reads on public repos
   repo: string;                // 'owner/repo'
 }
 
@@ -26,11 +26,14 @@ export class ApiClient {
   constructor(private opts: ApiClientOptions) {}
 
   private headers(): Record<string, string> {
-    return {
-      'Authorization': `Bearer ${this.opts.token}`,
+    const h: Record<string, string> = {
       'Accept': 'application/vnd.github+json',
       'Content-Type': 'application/json',
     };
+    if (this.opts.token) {
+      h['Authorization'] = `Bearer ${this.opts.token}`;
+    }
+    return h;
   }
 
   async getViewer(): Promise<{ login: string }> {
