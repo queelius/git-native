@@ -44,6 +44,28 @@ export class GitHubAdapter implements GitHostAdapter {
     }
   }
 
+  async restoreSession(): Promise<void> {
+    // Called once at app startup. If a token was rehydrated from storage,
+    // verify it's still valid and populate the actor. If invalid, clear it
+    // so the UI shows the unauthenticated state instead of pretending.
+    if (!this.token || !this.api) return;
+    if (this.actor !== null) return;  // already validated this session
+    try {
+      const viewer = await this.api.getViewer();
+      this.actor = viewer.login;
+    } catch (e) {
+      const status = (e as { status?: number }).status;
+      if (status === 401 || status === 403) {
+        this.token = null;
+        this.api = new ApiClient({ token: null, repo: this.opts.repo });
+        this.actor = null;
+        this.opts.storage?.set(null);
+      }
+      // For other errors (network, rate limit, etc.) leave the token in
+      // place and let later operations surface their own errors.
+    }
+  }
+
   async signInWithToken(token: string): Promise<void> {
     if (!token || token.trim() === '') {
       throw new AuthError('Empty token');
@@ -103,6 +125,16 @@ export class GitHubAdapter implements GitHostAdapter {
     } catch (e) {
       if ((e as { isConflict?: boolean }).isConflict) {
         throw new ConflictError();
+      }
+      const status = (e as { status?: number }).status;
+      if (status === 401 || status === 403) {
+        // Token rejected. Clear local state so UI no longer claims signed-in,
+        // and surface a typed AuthError so the caller can re-prompt.
+        this.token = null;
+        this.api = new ApiClient({ token: null, repo: this.opts.repo });
+        this.actor = null;
+        this.opts.storage?.set(null);
+        throw new AuthError('Token rejected by GitHub; please sign in again');
       }
       throw e;
     }

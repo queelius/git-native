@@ -38,7 +38,11 @@ export class ApiClient {
 
   async getViewer(): Promise<{ login: string }> {
     const resp = await fetch(`${GITHUB_API}/user`, { headers: this.headers() });
-    if (!resp.ok) throw new Error(`Viewer lookup failed: ${resp.status}`);
+    if (!resp.ok) {
+      const err = new Error(`Viewer lookup failed: ${resp.status}`);
+      (err as { status?: number }).status = resp.status;
+      throw err;
+    }
     return resp.json();
   }
 
@@ -60,7 +64,12 @@ export class ApiClient {
       const text = await resp.text();
       throw Object.assign(new Error(`Contents conflict: ${text}`), { isConflict: true });
     }
-    if (!resp.ok) throw new Error(`Put contents failed: ${resp.status} ${await resp.text()}`);
+    if (!resp.ok) {
+      const text = await resp.text();
+      const err = new Error(`Put contents failed: ${resp.status} ${text}`);
+      (err as { status?: number }).status = resp.status;
+      throw err;
+    }
     return resp.json();
   }
 
@@ -73,7 +82,11 @@ export class ApiClient {
       `${GITHUB_API}/repos/${this.opts.repo}/commits?${params}`,
       { headers: this.headers() }
     );
-    if (!resp.ok) throw new Error(`List commits failed: ${resp.status}`);
+    if (!resp.ok) {
+      const err = new Error(`List commits failed: ${resp.status}`);
+      (err as { status?: number }).status = resp.status;
+      throw err;
+    }
     return resp.json();
   }
 }

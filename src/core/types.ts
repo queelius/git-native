@@ -37,6 +37,7 @@ export interface RawCommit {
 export interface GitHostAdapter {
   signIn(): Promise<void>;
   signInWithToken?(token: string): Promise<void>;
+  restoreSession?(): Promise<void>;
   signOut(): Promise<void>;
   isAuthenticated(): boolean;
   currentActor(): string | null;
