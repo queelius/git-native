@@ -46,6 +46,28 @@ export class LocalNodeAdapter implements GitHostAdapter {
     return { sha };
   }
 
+  async delete(input: { files: string[]; branch?: string }): Promise<{ sha: string }> {
+    if (!this.signedIn) throw new AuthError('Not authenticated');
+    if (input.files.length !== 1) {
+      throw new Error('Multi-file delete is not supported. Use single-file delete.');
+    }
+    const filepath = input.files[0]!;
+    const fullPath = path.join(this.opts.dir, filepath);
+    if (!fs.existsSync(fullPath)) {
+      throw new Error(`File does not exist: ${filepath}`);
+    }
+    fs.unlinkSync(fullPath);
+    await git.remove({ fs, dir: this.opts.dir, filepath });
+    const message = `delete ${filepath}`;
+    const sha = await git.commit({
+      fs,
+      dir: this.opts.dir,
+      message,
+      author: this.opts.actor,
+    });
+    return { sha };
+  }
+
   async events(query: EventQuery): Promise<RawCommit[]> {
     // isomorphic-git stops walking when committer.timestamp <= sinceTimestamp (seconds).
     // Subtract one second so commits at exactly the since boundary are included.

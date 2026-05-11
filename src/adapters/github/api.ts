@@ -73,6 +73,47 @@ export class ApiClient {
     return resp.json();
   }
 
+  async getContentsSha(path: string): Promise<string | null> {
+    const resp = await fetch(
+      `${GITHUB_API}/repos/${this.opts.repo}/contents/${encodeURIComponent(path).replace(/%2F/g, '/')}`,
+      { headers: this.headers() },
+    );
+    if (resp.status === 404) return null;
+    if (!resp.ok) {
+      const err = new Error(`Get contents failed: ${resp.status}`);
+      (err as { status?: number }).status = resp.status;
+      throw err;
+    }
+    const data = await resp.json() as { sha?: string };
+    return data.sha ?? null;
+  }
+
+  async deleteContents(input: { path: string; message: string; sha: string; branch?: string }): Promise<{ commit: { sha: string } }> {
+    const resp = await fetch(
+      `${GITHUB_API}/repos/${this.opts.repo}/contents/${encodeURIComponent(input.path).replace(/%2F/g, '/')}`,
+      {
+        method: 'DELETE',
+        headers: this.headers(),
+        body: JSON.stringify({
+          message: input.message,
+          sha: input.sha,
+          branch: input.branch,
+        }),
+      },
+    );
+    if (resp.status === 409 || resp.status === 422) {
+      const text = await resp.text();
+      throw Object.assign(new Error(`Delete conflict: ${text}`), { isConflict: true });
+    }
+    if (!resp.ok) {
+      const text = await resp.text();
+      const err = new Error(`Delete contents failed: ${resp.status} ${text}`);
+      (err as { status?: number }).status = resp.status;
+      throw err;
+    }
+    return resp.json();
+  }
+
   async listCommits(opts: { path?: string; since?: string; per_page?: number }): Promise<CommitListItem[]> {
     const params = new URLSearchParams();
     if (opts.path) params.set('path', opts.path);

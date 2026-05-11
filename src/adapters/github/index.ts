@@ -120,7 +120,14 @@ export class GitHubAdapter implements GitHostAdapter {
     }
 
     try {
-      const result = await this.api.putContents({ path: filePath, content, message: fullMessage, branch });
+      const existingSha = await this.api.getContentsSha(filePath);
+      const result = await this.api.putContents({
+        path: filePath,
+        content,
+        message: fullMessage,
+        branch,
+        sha: existingSha ?? undefined,
+      });
       return { sha: result.commit.sha };
     } catch (e) {
       if ((e as { isConflict?: boolean }).isConflict) {
@@ -164,6 +171,41 @@ export class GitHubAdapter implements GitHostAdapter {
         messageBody: body,
       };
     });
+  }
+
+  async delete(input: { files: string[]; branch?: string }): Promise<{ sha: string }> {
+    if (!this.token || !this.api) throw new AuthError('Not authenticated');
+    if (input.files.length !== 1) {
+      throw new Error('Multi-file delete is not supported. Use single-file delete.');
+    }
+    const filePath = input.files[0]!;
+    const message = `delete ${filePath}`;
+    try {
+      const existingSha = await this.api.getContentsSha(filePath);
+      if (existingSha === null) {
+        throw new Error(`File does not exist: ${filePath}`);
+      }
+      const result = await this.api.deleteContents({
+        path: filePath,
+        message,
+        sha: existingSha,
+        branch: input.branch,
+      });
+      return { sha: result.commit.sha };
+    } catch (e) {
+      if ((e as { isConflict?: boolean }).isConflict) {
+        throw new ConflictError();
+      }
+      const status = (e as { status?: number }).status;
+      if (status === 401 || status === 403) {
+        this.token = null;
+        this.api = new ApiClient({ token: null, repo: this.opts.repo });
+        this.actor = null;
+        this.opts.storage?.set(null);
+        throw new AuthError('Token rejected by GitHub; please sign in again');
+      }
+      throw e;
+    }
   }
 
 }

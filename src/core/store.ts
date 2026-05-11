@@ -26,6 +26,7 @@ export interface Store {
   commit(event: EventInput, opts?: CommitOptions): Promise<{ sha: string }>;
   events(query?: EventQuery): Promise<Event[]>;
   subscribe(callback: (events: Event[]) => void): Subscription;
+  delete(input: { files: string[]; branch?: string }): Promise<{ sha: string }>;
 }
 
 export function gitNative(options: StoreOptions): Store {
@@ -83,6 +84,13 @@ export function gitNative(options: StoreOptions): Store {
 
     subscribe(callback) {
       return createSubscriber(adapter, { pollInterval }, callback);
+    },
+
+    async delete(input) {
+      if (!adapter.delete) {
+        throw new Error('Adapter does not support delete');
+      }
+      return await adapter.delete(input);
     },
   };
 }

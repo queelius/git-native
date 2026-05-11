@@ -44,6 +44,22 @@ export class MockAdapter implements GitHostAdapter {
     return { sha };
   }
 
+  async delete(input: { files: string[]; branch?: string }): Promise<{ sha: string }> {
+    if (!this.isAuthenticated()) {
+      throw new Error('not authenticated');
+    }
+    const filePath = input.files[0] ?? '';
+    const sha = `sha-${this.nextSha++}`;
+    this.commits.unshift({
+      sha,
+      author: this.actor!,
+      committedAt: new Date().toISOString(),
+      messageSubject: `delete ${filePath}`,
+      messageBody: '',
+    });
+    return { sha };
+  }
+
   async events(query: EventQuery): Promise<RawCommit[]> {
     let result = this.commits.slice();
     if (query.since) {

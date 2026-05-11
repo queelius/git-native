@@ -44,6 +44,7 @@ export interface GitHostAdapter {
 
   commit(input: CommitInput): Promise<{ sha: string }>;
   events(query: EventQuery): Promise<RawCommit[]>;
+  delete?(input: { files: string[]; branch?: string }): Promise<{ sha: string }>;
 
 }
 
